@@ -17,106 +17,9 @@ Ext.define('MovieRentalApp.view.main.TransactionGrid', {
     { text: 'Transaction ID', dataIndex: 'TransactionId', flex: 1 },
     { text: 'Customer Name', dataIndex: 'CustomerName', flex: 1 },
     { text: 'Rent Date', dataIndex: 'RentDate', flex: 1, xtype: 'datecolumn', format: 'Y-m-d' },
-    { text: 'Return Date', dataIndex: 'ReturnDate', flex: 1, xtype: 'datecolumn', format: 'Y-m-d' },
-    {
-      text: 'Status',
-      dataIndex: 'ReturnDate',
-      flex: 1,
-      renderer: function (value, metaData, record) {
-        if (value) {
-          return 'Returned';
-        } else {
-          return 'Pending';
-        }
-      }
-    },
-    {
-      text: 'Return Movie',
-      xtype: 'actioncolumn',
-      width: 80,
-      items: [{
-        getClass: function (value, metaData, record) {
-          var status = record.get('Status');
-          if (status === 'Returned' || status === 'Pending') {
-            return (status === 'Returned') ? 'x-fa fa-times-circle' : 'x-fa fa-check-circle';
-          } else {
-            return '';
-          }
-        },
-        getTip: function (value, metaData, record) {
-          var status = record.get('Status');
-          return (status === 'Returned' || status === 'Pending') ? 'Reset Return' : '';
-        },
-        handler: function (grid, rowIndex, colIndex, item, e, record) {
-          var transactionId = record.get('TransactionId');
-          var status = record.get('Status');
-    
-          if (status === 'Returned') {
-            var returnData = {
-              TransactionId: transactionId,
-              CustomerName: record.get('CustomerName'),
-              Movie: record.get('Movie'),
-              TotalPrice: record.get('TotalPrice'),
-              RentDate: record.get('RentDate'),
-              ReturnDate: null,
-              Status: 'Pending',
-              Quantity: record.get('Quantity')
-            };
-    
-            fetch('https://localhost:44302/Transactions/' + transactionId, {
-              method: 'PUT',
-              headers: {
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify(returnData)
-            })
-              .then(response => {
-                if (response.ok) {
-                  Ext.Msg.alert('Success', 'Transaction return reset successfully.');
-                  grid.getStore().load();
-                } else {
-                  throw new Error('Failed to reset transaction return.');
-                }
-              })
-              .catch(error => {
-                Ext.Msg.alert('Error', error.message);
-              });
-          } else if (status === 'Pending') {
-            var returnData = {
-              TransactionId: transactionId,
-              CustomerName: record.get('CustomerName'),
-              Movie: record.get('Movie'),
-              TotalPrice: record.get('TotalPrice'),
-              RentDate: record.get('RentDate'),
-              ReturnDate: new Date(),
-              Status: 'Returned',
-              Quantity: record.get('Quantity')
-            };
-    
-            fetch('https://localhost:44302/Transactions/' + transactionId, {
-              method: 'PUT',
-              headers: {
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify(returnData)
-            })
-              .then(response => {
-                if (response.ok) {
-                  Ext.Msg.alert('Success', 'Transaction marked as returned successfully.');
-                  grid.getStore().load();
-                } else {
-                  throw new Error('Failed to mark transaction as returned.');
-                }
-              })
-              .catch(error => {
-                Ext.Msg.alert('Error', error.message);
-              });
-          }
-        }
-      }]
-    }
     
   ],
+  
   tbar: [{
     text: 'New Transaction',
     handler: function () {
@@ -235,13 +138,7 @@ Ext.define('MovieRentalApp.view.main.TransactionGrid', {
             name: 'rentDate',
             format: 'Y-m-d',
           },
-          {
-            xtype: 'datefield',
-            fieldLabel: 'Return Date',
-            name: 'returnDate',
-            format: 'Y-m-d',
-            allowBlank: true
-          },
+          
           {
             xtype: 'button',
             text: 'Save',
@@ -249,7 +146,7 @@ Ext.define('MovieRentalApp.view.main.TransactionGrid', {
               var customerName = this.up('window').down('combobox[name=customerName]').getValue();
               var movieIds = this.up('window').down('tagfield[name=movieId]').getValue();
               var rentDate = this.up('window').down('datefield[name=rentDate]').getValue();
-              var returnDate = this.up('window').down('datefield[name=returnDate]').getValue();
+            
               var quantity = this.up('window').down('numberfield[name=quantity]').getValue();
               var movieStore = this.up('window').down('tagfield[name=movieId]').getStore();
           
@@ -268,21 +165,17 @@ Ext.define('MovieRentalApp.view.main.TransactionGrid', {
               var totalPriceField = this.up('window').down('textfield[name=totalPrice]');
               totalPriceField.setValue(totalPrice.toFixed(2));
           
-              var status = returnDate ? 'Returned' : 'Pending';
           
               var transactionData = {
                 CustomerName: customerName,
                 Movie: selectedMovies.map(function (movie) { return movie.get('id'); }).join(','),
                 TotalPrice: totalPrice,
                 Quantity: quantity,
-                RentDate: rentDate,
-                ReturnDate: returnDate !== null ? returnDate : null,
-                Status: status
+                RentDate: rentDate
+                
               };
           
-              if (returnDate) {
-                transactionData.ReturnDate = returnDate;
-              }
+              
           
               fetch('https://localhost:44302/Transactions', {
                 method: 'POST',
@@ -317,7 +210,8 @@ Ext.define('MovieRentalApp.view.main.TransactionGrid', {
                         TransactionId: transactionId,
                         MovieId: movie.get('id'),
                         Title: movie.get('title'),
-                        Director: movie.get('director')
+                        Director: movie.get('director'),
+                        
                       };
 
                       transactionDetailsData.push(transactionDetail);
@@ -392,6 +286,7 @@ Ext.define('MovieRentalApp.view.main.TransactionGrid', {
             title: record.get('Title'),
             quantity: record.get('Quantity'),
             director: record.get('Director')
+            
           });
         });
 
@@ -404,20 +299,155 @@ Ext.define('MovieRentalApp.view.main.TransactionGrid', {
     }
   },
   
-  //View Details
-  {
-    text: 'View Details',
-    handler: function () {
-      var selectedRecords = this.up('grid').getSelectionModel().getSelection();
-      if (selectedRecords.length !== 1) {
-        Ext.Msg.alert('Error', 'Please select a single transaction to view details.');
-        return;
+  // View Details
+{
+  text: 'View Details',
+  handler: function () {
+    var selectedRecords = this.up('grid').getSelectionModel().getSelection();
+    if (selectedRecords.length !== 1) {
+      Ext.Msg.alert('Error', 'Please select a single transaction to view details.');
+      return;
+    }
+
+    var record = selectedRecords[0];
+    var transactionId = record.get('TransactionId');
+
+    // Create a store for the transaction details
+    var transactionDetailsStore = Ext.create('Ext.data.Store', {
+      type: 'transactiondetailsstore'
+    });
+
+    // Create the grid using the store
+    var transactionDetailsGrid = Ext.create('Ext.grid.Panel', {
+      store: transactionDetailsStore,
+      columns: [
+        { text: 'Transaction Detail', dataIndex: 'TransactionDetailId', flex: 1 },
+        { text: 'Transaction ID', dataIndex: 'TransactionId', flex: 1 },
+        { text: 'Name', dataIndex: 'Name', flex: 1 },
+        { text: 'Movie ID', dataIndex: 'MovieId', flex: 1 },
+        { text: 'Title', dataIndex: 'Title', flex: 1 },
+        { text: 'Director', dataIndex: 'Director', flex: 1 },
+        { text: 'Return Date', dataIndex: 'ReturnDate', flex: 1, xtype: 'datecolumn', format: 'Y-m-d' },
+        {
+          text: 'Status',
+          dataIndex: 'Status',
+          flex: 1,
+          renderer: function (value, metaData, record) {
+            var returnDate = record.get('ReturnDate');
+            if (returnDate === null) {
+              return 'Pending';
+            } else {
+              return 'Returned';
+            }
+          }
+        },
+        {
+          text: 'Action',
+          dataIndex: 'Status',
+          width: 70,
+          renderer: function (value, metaData, record) {
+            if (value === 'Return') {
+              return '<button class="return-button">Return</button>';
+            } else if (value === 'Cancel') {
+              return '<button class="cancel-button">Cancel</button>';
+            }
+            return '';
+          }
+        }
+      ],
+      listeners: {
+        afterrender: function (grid) {
+          grid.on('cellclick', function (view, cell, cellIndex, record, row, rowIndex, e) {
+            var button = e.getTarget('.return-button, .cancel-button', null, true);
+            if (button) {
+              if (button.hasCls('return-button')) {
+                if (record.get('ReturnDate') === null) {
+                  // Update the ReturnDate to the current date
+                  var currentDate = new Date().toISOString();
+                  record.set('ReturnDate', currentDate);
+
+                  // Perform PUT request to update the ReturnDate
+                  var transactionDetailId = record.get('TransactionDetailId');
+                  var updateData = {
+                    TransactionDetailId: transactionDetailId,
+                    Name: record.get('Name'),
+                    TransactionId: record.get('TransactionId'),
+                    MovieId: record.get('MovieId'),
+                    Title: record.get('Title'),
+                    Director: record.get('Director'),
+                    ReturnDate: currentDate,
+                    Status: 'Returned'
+                  };
+
+                  fetch('https://localhost:44302/TransactionDetailsDTO/' + transactionDetailId, {
+                    method: 'PUT',
+                    headers: {
+                      'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(updateData)
+                  })
+                    .then(response => {
+                      if (response.ok) {
+                        Ext.Msg.alert('Success', 'Returndate updated successfully.');
+                        record.commit();
+                        // Reload transaction details after updating
+                        reloadTransactionDetails();
+                      } else {
+                        throw new Error('Failed to update ReturnDate.');
+                      }
+                    })
+                    .catch(error => {
+                      Ext.Msg.alert('Error', error.message);
+                    });
+                }
+              } else if (button.hasCls('cancel-button')) {
+                if (record.get('ReturnDate') !== null) {
+                  // Update the ReturnDate to null
+                  record.set('ReturnDate', null);
+
+                  // Perform PUT request to set ReturnDate as null
+                  var transactionDetailId = record.get('TransactionDetailId');
+                  var updateData = {
+                    TransactionDetailId: transactionDetailId,
+                    Name: record.get('Name'),
+                    TransactionId: record.get('TransactionId'),
+                    MovieId: record.get('MovieId'),
+                    Title: record.get('Title'),
+                    Director: record.get('Director'),
+                    ReturnDate: null,
+                    Status: 'Pending'
+                  };
+
+                  fetch('https://localhost:44302/TransactionDetailsDTO/' + transactionDetailId, {
+                    method: 'PUT',
+                    headers: {
+                      'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(updateData)
+                  })
+                    .then(response => {
+                      if (response.ok) {
+                        Ext.Msg.alert('Success', 'Returndate canceled successfully.');
+                        record.commit();
+                        // Reload transaction details after updating
+                        reloadTransactionDetails();
+                      } else {
+                        throw new Error('Failed to cancel ReturnDate.');
+                      }
+                    })
+                    .catch(error => {
+                      Ext.Msg.alert('Error', error.message);
+                    });
+                }
+              }
+            }
+          });
+        }
       }
-  
-      var record = selectedRecords[0];
-      var transactionId = record.get('TransactionId');
-  
-      // Retrieve the transaction details for the selected TransactionId
+    });
+
+    // Create a function to reload the transaction details and update the grid
+    function reloadTransactionDetails() {
       fetch('https://localhost:44302/TransactionDetailsDTO?transactionId=' + transactionId)
         .then(response => {
           if (response.ok) {
@@ -434,34 +464,12 @@ Ext.define('MovieRentalApp.view.main.TransactionGrid', {
               Name: transactionDetail.Name,
               MovieId: transactionDetail.MovieId,
               Title: transactionDetail.Title,
-              Director: transactionDetail.Director
+              Director: transactionDetail.Director,
+              ReturnDate: transactionDetail.ReturnDate,
+              Status: transactionDetail.ReturnDate === null ? 'Return' : 'Cancel'
             }));
-  
-            var floatingPanel = Ext.create('Ext.window.Window', {
-              title: 'Transaction Details',
-              layout: 'fit',
-              width: 800,
-              height: 400,
-              items: [
-                {
-                  xtype: 'grid',
-                  store: {
-                    type: 'transactiondetailsstore',
-                    data: transactionDetailsData
-                  },
-                  columns: [
-                    { text: 'Transaction Detail', dataIndex: 'TransactionDetailId', flex: 1 },
-                    { text: 'Transaction ID', dataIndex: 'TransactionId', flex: 1 },
-                    { text: 'Name', dataIndex: 'Name', flex: 1 },
-                    { text: 'Movie ID', dataIndex: 'MovieId', flex: 1 },
-                    { text: 'Title', dataIndex: 'Title', flex: 1 },
-                    { text: 'Director', dataIndex: 'Director', flex: 1 }
-                  ]
-                }
-              ]
-            });
-  
-            floatingPanel.show();
+
+            transactionDetailsStore.loadData(transactionDetailsData);
           } else {
             Ext.Msg.alert('Error', 'No transaction details found.');
           }
@@ -470,57 +478,70 @@ Ext.define('MovieRentalApp.view.main.TransactionGrid', {
           Ext.Msg.alert('Error', error.message);
         });
     }
-  },
-  {    
+
+    // Show the floating panel with the transaction details grid
+    var floatingPanel = Ext.create('Ext.window.Window', {
+      title: 'Transaction Details',
+      layout: 'fit',
+      width: 800,
+      height: 400,
+      items: [transactionDetailsGrid]
+    });
+
+    // Reload the transaction details when the panel is shown
+    floatingPanel.on('show', reloadTransactionDetails);
+
+    // Show the floating panel
+    floatingPanel.show();
+  }
+},
+
+  // Delete
+  {
     text: 'Delete',
-        handler: function() {
-          var selectedRecords = this.up('grid').getSelectionModel().getSelection();
-          if (selectedRecords.length === 0) {
-            Ext.Msg.alert('Error', 'Please select a transaction to delete.');
-            return;
-          }
-          
-          if (selectedRecords.length > 0) {
-            Ext.Msg.confirm('Delete Transaction', 'Are you sure you want to delete the selected transaction?', function(btn) {
-              if (btn === 'yes') {
-                var transactionId = [];
-                Ext.each(selectedRecords, function(record) {
-                  transactionId.push(record.get('TransactionId'));
-                });
-  
-                var grid = this.up('grid'); // Define the 'grid' variable 
-  
-                var url = 'https://localhost:44302/Transactions/' + transactionId.join(','); // Construct the URL with movie IDs
-  
-                fetch(url, {
-                  method: 'DELETE'
-                })
-                .then(function(response) {
-                  if (response.ok) {
-                    return response.json();
-                  } else {
-                    throw new Error('Failed to delete the transaction.');
-                  }
-                })
-                .then(function(apiResponse) {
-                  if (apiResponse.success) {
-                    Ext.Msg.alert('Success', 'transaction deleted successfully!');
-                    grid.getStore().load(); // Reload the grid store to reflect the changes
-                  } else {
-                    Ext.Msg.alert('Success', 'transaction deleted successfully!');
-                    grid.getStore().load(); // Reload the grid store to reflect the changes
-                  }
-                })
-                .catch(function(error) {
-                  
-                  Ext.Msg.alert('Error', error.message);
-                  grid.getStore().load();
-                });
-              }
-            }, this); // Pass 'this' as the third argument to maintain the scope inside the confirmation callback
-          }
-        }
+    handler: function () {
+      var selectedRecords = this.up('grid').getSelectionModel().getSelection();
+      if (selectedRecords.length === 0) {
+        Ext.Msg.alert('Error', 'Please select a transaction to delete.');
+        return;
       }
+
+      if (selectedRecords.length > 0) {
+        Ext.Msg.confirm('Delete Transaction', 'Are you sure you want to delete the selected transaction?', function (btn) {
+          if (btn === 'yes') {
+            var transactionIds = selectedRecords.map(record => record.get('TransactionId'));
+
+            var grid = this.up('grid');
+
+            var url = 'https://localhost:44302/Transactions/' + transactionIds.join(',');
+
+            fetch(url, {
+                method: 'DELETE'
+              })
+              .then(function (response) {
+                if (response.ok) {
+                  return response.json();
+                } else {
+                  throw new Error('Failed to delete the transaction.');
+                }
+              })
+              .then(function (apiResponse) {
+                if (apiResponse.success) {
+                  Ext.Msg.alert('Error', 'Failed to delete the transaction.');
+                  
+                } else {
+                  Ext.Msg.alert('Success', 'Transaction deleted successfully!');
+                  grid.getStore().load(); // Reload the grid store to reflect the changes
+                }
+              })
+              .catch(function (error) {
+                Ext.Msg.alert('Error', error.message);
+              });
+          }
+        }, this);
+      }
+    }
+  }
 ],
 
 listeners: {
