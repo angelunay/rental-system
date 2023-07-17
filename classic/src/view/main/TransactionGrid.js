@@ -5,7 +5,7 @@ Ext.define('MovieRentalApp.view.main.TransactionGrid', {
 
   store: {
     type: 'transactionstore',
-    autoLoad: true
+    autoLoad: false
   },
 
   selModel: {
@@ -28,7 +28,8 @@ Ext.define('MovieRentalApp.view.main.TransactionGrid', {
         title: 'Add New Transaction',
         layout: 'form',
         width: 411,
-        height: 450,
+        height: 403,
+        autoScroll: true, // Add this line to enable scrollbar
         grid: grid,
         items: [
           {
@@ -82,13 +83,17 @@ Ext.define('MovieRentalApp.view.main.TransactionGrid', {
                 }
             
                 var movieTitleField = tagfield.up('window').down('textfield[name=Title]');
+                var movieDirectorField = tagfield.up('window').down('textfield[name=Director]');
                 if (movieTitleField) {
                   var movieTitles = [];
+                  var movieDirector = [];
                   selectedMovies.each(function (movie) {
                     movieTitles.push(movie.get('title'));
+                    movieDirector.push(movie.get('director'));
                   });
             
                   movieTitleField.setValue(movieTitles.join(', '));
+                  movieDirectorField.setValue(movieDirector.join(', '));
                 }
 
                 var movieQuantityField = tagfield.up('window').down('numberfield[name=quantity]');
@@ -104,18 +109,25 @@ Ext.define('MovieRentalApp.view.main.TransactionGrid', {
               }
                        
             }
-          },
+          }, 
           {
-            xtype: 'textfield',
-            fieldLabel: 'Transaction ID',
-            name: 'transactionId', // Add a name to the textfield
-            readOnly: true,
-            hidden: true // Hide the field initially
-          },
+            xtype: 'datefield',
+            fieldLabel: 'Rent Date',
+            name: 'rentDate',
+            format: 'Y-m-d',
+          },        
           {
             xtype: 'textfield',
             fieldLabel: 'Title',
             name: 'Title',
+            readOnly: true
+            
+          },
+          {
+            xtype: 'textfield',
+            fieldLabel: 'Director',
+            name: 'Director',
+            readOnly: true
             
           },
           {
@@ -123,31 +135,15 @@ Ext.define('MovieRentalApp.view.main.TransactionGrid', {
             fieldLabel: 'Total Price',
             name: 'totalPrice',
             readOnly: true
-          },
-          {
-            xtype: 'numberfield',
-            fieldLabel: 'Quantity',
-            name: 'quantity',
-            minValue: 1,
-            value: 1 // Set a default value for the quantity field
-          },
-          
-          {
-            xtype: 'datefield',
-            fieldLabel: 'Rent Date',
-            name: 'rentDate',
-            format: 'Y-m-d',
-          },
-          
+          },          
           {
             xtype: 'button',
             text: 'Save',
             handler: function () {
               var customerName = this.up('window').down('combobox[name=customerName]').getValue();
               var movieIds = this.up('window').down('tagfield[name=movieId]').getValue();
-              var rentDate = this.up('window').down('datefield[name=rentDate]').getValue();
-            
-              var quantity = this.up('window').down('numberfield[name=quantity]').getValue();
+              var rentDate = this.up('window').down('datefield[name=rentDate]').getValue();            
+              
               var movieStore = this.up('window').down('tagfield[name=movieId]').getStore();
           
               var selectedMovies = movieStore.getRange().filter(function (movie) {
@@ -170,7 +166,6 @@ Ext.define('MovieRentalApp.view.main.TransactionGrid', {
                 CustomerName: customerName,
                 Movie: selectedMovies.map(function (movie) { return movie.get('id'); }).join(','),
                 TotalPrice: totalPrice,
-                Quantity: quantity,
                 RentDate: rentDate
                 
               };
@@ -189,15 +184,12 @@ Ext.define('MovieRentalApp.view.main.TransactionGrid', {
                   if (apiResponse.success) {
                     Ext.Msg.alert('Success', 'Transaction saved successfully!');
                     floatingPanel.close();
-                  
                     // Reload the grid store to show the new transaction
                     grid.getStore().load();                  
                     
                   } else {
-                    Ext.Msg.alert('Success', 'Transaction updated successfully!');
-                    
+                    Ext.Msg.alert('Success', 'Transaction updated successfully!');                    
                     floatingPanel.destroy();
-                    // Reload the grid store to show the new transaction
                     grid.getStore().load();
                     var transactionId = apiResponse.TransactionId;
                   
@@ -210,8 +202,7 @@ Ext.define('MovieRentalApp.view.main.TransactionGrid', {
                         TransactionId: transactionId,
                         MovieId: movie.get('id'),
                         Title: movie.get('title'),
-                        Director: movie.get('director'),
-                        
+                        Director: movie.get('director'),                        
                       };
 
                       transactionDetailsData.push(transactionDetail);
@@ -323,7 +314,6 @@ Ext.define('MovieRentalApp.view.main.TransactionGrid', {
       columns: [
         { text: 'Transaction Detail', dataIndex: 'TransactionDetailId', flex: 1 },
         { text: 'Transaction ID', dataIndex: 'TransactionId', flex: 1 },
-        { text: 'Name', dataIndex: 'Name', flex: 1 },
         { text: 'Movie ID', dataIndex: 'MovieId', flex: 1 },
         { text: 'Title', dataIndex: 'Title', flex: 1 },
         { text: 'Director', dataIndex: 'Director', flex: 1 },
@@ -355,6 +345,11 @@ Ext.define('MovieRentalApp.view.main.TransactionGrid', {
           }
         }
       ],
+      selModel: {
+        selType: 'checkboxmodel',
+        checkOnly: true,
+        mode: 'SINGLE'
+      },
       listeners: {
         afterrender: function (grid) {
           grid.on('cellclick', function (view, cell, cellIndex, record, row, rowIndex, e) {
@@ -370,7 +365,6 @@ Ext.define('MovieRentalApp.view.main.TransactionGrid', {
                   var transactionDetailId = record.get('TransactionDetailId');
                   var updateData = {
                     TransactionDetailId: transactionDetailId,
-                    Name: record.get('Name'),
                     TransactionId: record.get('TransactionId'),
                     MovieId: record.get('MovieId'),
                     Title: record.get('Title'),
@@ -461,12 +455,12 @@ Ext.define('MovieRentalApp.view.main.TransactionGrid', {
             var transactionDetailsData = apiResponse.filter(transactionDetail => transactionDetail.TransactionId === transactionId).map(transactionDetail => ({
               TransactionDetailId: transactionDetail.TransactionDetailId,
               TransactionId: transactionDetail.TransactionId,
-              Name: transactionDetail.Name,
               MovieId: transactionDetail.MovieId,
               Title: transactionDetail.Title,
               Director: transactionDetail.Director,
               ReturnDate: transactionDetail.ReturnDate,
-              Status: transactionDetail.ReturnDate === null ? 'Return' : 'Cancel'
+              Status: transactionDetail.ReturnDate === null ? 'Return' : 'Cancel',
+              selected: false
             }));
 
             transactionDetailsStore.loadData(transactionDetailsData);
@@ -479,13 +473,223 @@ Ext.define('MovieRentalApp.view.main.TransactionGrid', {
         });
     }
 
-    // Show the floating panel with the transaction details grid
+    // Create an "Add" button
+    var addButton = Ext.create('Ext.button.Button', {
+      text: 'Add',
+      handler: function () {
+        // Declare newFloatingPanel in the outer scope
+        var newFloatingPanel;
+
+        // Load the movie store
+        movieStore.load({
+          callback: function(records, operation, success) {
+            if (success) {
+              createFormPanel();
+            } else {
+              Ext.Msg.alert('Error', 'Failed to load movie data.');
+            }
+          }
+        });
+
+        // Function to create the form panel
+        function createFormPanel() {
+          // Create a form panel
+          var formPanel = Ext.create('Ext.form.Panel', {
+            bodyPadding: 20,
+            defaultType: 'textfield',
+            items: [
+              {
+                xtype: 'displayfield',
+                fieldLabel: 'Transaction ID',
+                name: 'TransactionId',
+                value: transactionId // Use the selected transactionId from the previous code
+              },
+              {
+                xtype: 'tagfield',
+                fieldLabel: 'Movie IDs',
+                name: 'MovieIds',
+                store: movieStore, // Use the already loaded movie store
+                displayField: 'MovieId', // Display Movie ID
+                valueField: 'MovieId', // Use Movie ID as the value
+                queryMode: 'local',
+                editable: true, // Set editable to true
+                listeners: {
+                  change: function (tagField, newValue) {
+                    var movieTitles = [];
+                    var movieDirector = [];
+                    newValue.forEach(function (movieId) {
+                      var movieRecord = movieStore.findRecord('MovieId', movieId);
+                      if (movieRecord) {
+                        movieTitles.push(movieRecord.get('Title'));
+                        movieDirector.push(movieRecord.get('Director'));
+                      }
+                    });
+                    formPanel.getForm().findField('Title').setValue(movieTitles.join(', '));
+                    formPanel.getForm().findField('Director').setValue(movieDirector.join(', '));
+                  }
+                  
+                }
+              },
+              {
+                xtype: 'textfield',
+                fieldLabel: 'Title',
+                name: 'Title',
+                readOnly: true
+              },
+              {
+                xtype: 'textfield',
+                fieldLabel: 'Director',
+                name: 'Director'
+              },
+              {
+                xtype: 'datefield',
+                fieldLabel: 'Return Date',
+                name: 'ReturnDate',
+                format: 'Y-m-d'
+              },
+              {
+                xtype: 'button',
+                text: 'Save',
+                handler: function () {
+                  var transactionId = this.up('window').down('displayfield[name=TransactionId]').getValue();
+                  var movieIds = this.up('window').down('tagfield[name=MovieIds]').getValue();
+                  var returnDate = this.up('window').down('textfield[name=ReturnDate]').getValue();
+                  var status = '';
+
+                  if (returnDate === null || returnDate === '') {
+                    status = 'Pending';
+                  } else {
+                    status = 'Returned';
+                  }
+
+                  var movieData = movieIds.map(function (movieId) {
+                    var movieRecord = movieStore.findRecord('MovieId', movieId);
+                    if (movieRecord) {
+                      return {
+                        TransactionId: transactionId,
+                        MovieId: movieId,
+                        Title: movieRecord.get('Title'),
+                        Director: movieRecord.get('Director'),
+                        ReturnDate: returnDate,
+                        Status: status
+                      };
+                    }
+                    return null;
+                  });
+
+
+                  fetch('https://localhost:44302/TransactionDetailsDTO', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(movieData.filter(Boolean)) // Pass the filtered array
+                  })
+                    .then(response => {
+                      if (response.ok) {
+                        return response.json();
+                      } else {
+                        throw new Error('Failed to save transaction details. HTTP status code: ' + response.status);
+                      }
+                    })
+                    .then(apiResponse => {
+                      if (apiResponse.success) {
+                        throw new Error('Failed to save transaction details. HTTP status code: ' + response.status);
+                      } else {
+                        Ext.Msg.alert('Success', 'Movie rented successfully', function () {
+                          newFloatingPanel.close();
+                          reloadTransactionDetails();
+                        })
+                      }
+                    });
+                }
+              }
+            ]
+          });
+
+          
+          // Create the new floating panel with form panel and toolbar
+          newFloatingPanel = Ext.create('Ext.window.Window', {
+            title: 'Rent Another Movie',
+            layout: 'form',
+            width: 368,
+            height: 474,
+            autoScroll: true, // Add this line to enable scrollbar
+            items: [formPanel]
+          });
+
+          // Show the new floating panel
+          newFloatingPanel.show();
+        }
+      }
+    });
+
+    // Create a "Delete" button
+    var deleteButton = Ext.create('Ext.button.Button', {
+      text: 'Delete Rented Movie',
+      handler: function () {
+        var selectedRecords = transactionDetailsGrid.getSelectionModel().getSelection();
+        if (selectedRecords.length === 0) {
+          Ext.Msg.alert('Error', 'Please select at least one transaction detail to delete.');
+          return;
+        }
+
+        Ext.Msg.confirm('Confirmation', 'Are you sure you want to delete the selected transaction details?', function (btn) {
+          if (btn === 'yes') {
+            var deletePromises = selectedRecords.map(function (record) {
+              var transactionDetailId = record.get('TransactionDetailId');
+              return fetch('https://localhost:44302/TransactionDetailsDTO/' + transactionDetailId, {
+                method: 'DELETE',
+                headers: {
+                  'Content-Type': 'application/json'
+                }
+              })
+                .then(response => {
+                  if (response.ok) {
+                    return response.json();
+                  } else {
+                    throw new Error('Failed to delete TransactionDetailId: ' + transactionDetailId);
+                  }
+                });
+            });
+
+            Promise.all(deletePromises)
+              .then(() => {
+                Ext.Msg.alert('Success', 'Selected transaction details deleted successfully.');
+                reloadTransactionDetails();
+              })
+              .catch(error => {
+                Ext.Msg.alert('Error', error.message);
+              });
+          }
+        });
+      }
+    });
+
+    // toolbar with the Add & Delete button 
+    var toolbar = Ext.create('Ext.toolbar.Toolbar', {
+      items: [addButton, deleteButton]
+    });
+
+    // Create a panel with the transaction details grid and toolbar
+    var panel = Ext.create('Ext.panel.Panel', {
+      layout: 'fit',
+      items: [
+        transactionDetailsGrid
+      ],
+      dockedItems: [
+        toolbar
+      ]
+    });
+
+    // Show the floating panel with the transaction details grid and toolbar
     var floatingPanel = Ext.create('Ext.window.Window', {
       title: 'Transaction Details',
       layout: 'fit',
       width: 800,
-      height: 400,
-      items: [transactionDetailsGrid]
+      height: 450,
+      autoScroll: true, // Add this line to enable scrollbar
+      items: [panel]
     });
 
     // Reload the transaction details when the panel is shown
@@ -493,11 +697,12 @@ Ext.define('MovieRentalApp.view.main.TransactionGrid', {
 
     // Show the floating panel
     floatingPanel.show();
-  }
-},
 
+
+  }
+}
   // Delete
-  {
+  ,{
     text: 'Delete',
     handler: function () {
       var selectedRecords = this.up('grid').getSelectionModel().getSelection();
@@ -529,13 +734,15 @@ Ext.define('MovieRentalApp.view.main.TransactionGrid', {
                 if (apiResponse.success) {
                   Ext.Msg.alert('Error', 'Failed to delete the transaction.');
                   
+                  
                 } else {
                   Ext.Msg.alert('Success', 'Transaction deleted successfully!');
                   grid.getStore().load(); // Reload the grid store to reflect the changes
                 }
               })
               .catch(function (error) {
-                Ext.Msg.alert('Error', error.message);
+                Ext.Msg.alert('Success', 'Transaction deleted successfully!');
+                grid.getStore().load();
               });
           }
         }, this);
