@@ -238,8 +238,9 @@ Ext.define('MovieRentalApp.view.main.UserGrid', {
                       Phone: phone
                     };
 
+                    //select userId from the db
                     var userIds = selectedRecords.map(function(record) {
-                      return record.get('Name'); //select userId from the db
+                      return record.get('Name'); 
                     });
       
                     var url = 'https://localhost:44302/Users/' + userIds.join(',');// Constructed URL with user name
