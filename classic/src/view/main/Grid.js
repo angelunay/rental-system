@@ -3,14 +3,15 @@ Ext.define('MovieRentalApp.view.main.Grid', {
   xtype: 'mainGrid',
   title: 'Movies',
   store: {
-    type: 'moviestore'
+    type: 'moviestore',
+    pageSize: 10, // Set the number of items to display per page
+    autoLoad: false 
   },
-
   selModel: {
     selType: 'checkboxmodel',
-    checkOnly: true
+    checkOnly: true,
+    mode: 'SINGLE'
   },
-
   columns: [
     { text: 'Movie ID', dataIndex: 'MovieId', flex: 1 },
     { text: 'Title', dataIndex: 'Title', flex: 1 },
@@ -31,6 +32,7 @@ Ext.define('MovieRentalApp.view.main.Grid', {
           layout: 'form',
           width: 411,
           height: 400,
+          autoScroll: true, // Add this line to enable scrollbar
           grid: grid,
           items: [
             {
@@ -47,7 +49,7 @@ Ext.define('MovieRentalApp.view.main.Grid', {
               xtype: 'combobox',
               fieldLabel: 'Genre',
               name: 'genre',
-              store: ['Action','Adventure','Anime', 'Comedy', 'Drama', 'Horror', 'Romance','KDrama'], // Dropdown options
+              store: ['Action','Adventure','Anime', 'Comedy', 'Drama','Fantasy', 'Horror', 'Romance','KDrama','Sci-Fi', 'Western'], // Dropdown options
               queryMode: 'local' // Uses the store as a local data source
             },
             {
@@ -151,7 +153,7 @@ Ext.define('MovieRentalApp.view.main.Grid', {
             title: 'Edit Movie',
             layout: 'form',
             width: 411,
-            height: 400,
+            height: 400,            
             grid: grid,
 
             items: [
@@ -173,7 +175,7 @@ Ext.define('MovieRentalApp.view.main.Grid', {
                 fieldLabel: 'Genre',
                 name: 'genre',
                 value: selectedRecord.get('Genre'),
-                store: ['Action','Adventure','Anime', 'Comedy', 'Drama', 'Horror', 'Romance','KDrama'], // Dropdown options
+                store: ['Action','Adventure','Anime', 'Comedy', 'Drama','Fantasy', 'Horror', 'Romance','KDrama','Sci-Fi', 'Western'], // Dropdown options
                 queryMode: 'local' // Uses the store as a local data source
               },
               {
@@ -324,14 +326,66 @@ Ext.define('MovieRentalApp.view.main.Grid', {
           }, this);
         }
       }
-    }],
+    },
 
 
+    '->', // Add a spacer to align the search field to the right
+
+    {
+      xtype: 'textfield',
+      //fieldLabel: 'Search',
+      emptyText: 'Enter a movie title...',
+      enableKeyEvents: true,
+      triggers: {
+        search: {
+          cls: 'x-form-search-trigger',
+          handler: function() {
+            var field = this;
+            var value = field.getValue();
+            var store = field.up('grid').getStore();
+
+            if (value) {
+              // Apply a filter to the store based on the entered value
+              store.filterBy(function(record) {
+                var title = record.get('Title');
+                return title.toLowerCase().indexOf(value.toLowerCase()) !== -1;
+              });
+            } else {
+              // Clear the filter and show all movies
+              store.clearFilter();
+            }
+          }
+        }
+      },
+      listeners: {
+        keyup: function(field, e) {
+          if (e.getKey() === e.ENTER) {
+            field.getTrigger('search').handler();
+          }
+        }
+      }
+    }
+  
+  ],
+  bbar: {
+    xtype: 'pagingtoolbar',
+    displayInfo: true,
+    store: {
+      type: 'moviestore'
+    },
+    listeners: {
+      beforechange: function (toolbar, page, eOpts) {
+        var store = toolbar.getStore();
+        store.loadPage(page);
+        return false; // Prevent default paging behavior
+      }
+    }
+  },
   listeners: {
     afterrender: function(gridPanel) {
       var grid = gridPanel;
       var store = grid.getStore();
-      store.load();
+      store.loadPage(1); // Load the first page of data
     }
   }
 });
