@@ -5,7 +5,8 @@ Ext.define('MovieRentalApp.view.main.TransactionGrid', {
 
   store: {
     type: 'transactionstore',
-    autoLoad: false
+    pageSize: 10, // Set the number of items to display per page
+    autoLoad: false 
   },
 
   selModel: {
@@ -312,8 +313,7 @@ Ext.define('MovieRentalApp.view.main.TransactionGrid', {
     var transactionDetailsGrid = Ext.create('Ext.grid.Panel', {
       store: transactionDetailsStore,
       columns: [
-        { text: 'Transaction Detail', dataIndex: 'TransactionDetailId', flex: 1 },
-        { text: 'Transaction ID', dataIndex: 'TransactionId', flex: 1 },
+        { text: 'Rental ID', dataIndex: 'TransactionDetailId', flex: 1 },        
         { text: 'Movie ID', dataIndex: 'MovieId', flex: 1 },
         { text: 'Title', dataIndex: 'Title', flex: 1 },
         { text: 'Director', dataIndex: 'Director', flex: 1 },
@@ -348,7 +348,7 @@ Ext.define('MovieRentalApp.view.main.TransactionGrid', {
       selModel: {
         selType: 'checkboxmodel',
         checkOnly: true,
-        mode: 'SINGLE'
+       // mode: 'SINGLE'
       },
       listeners: {
         afterrender: function (grid) {
@@ -476,6 +476,7 @@ Ext.define('MovieRentalApp.view.main.TransactionGrid', {
     // Create an "Add" button
     var addButton = Ext.create('Ext.button.Button', {
       text: 'Add',
+      iconCls: 'x-fa fa-plus', 
       handler: function () {
         // Declare newFloatingPanel in the outer scope
         var newFloatingPanel;
@@ -624,9 +625,66 @@ Ext.define('MovieRentalApp.view.main.TransactionGrid', {
       }
     });
 
+    // "Return All" button
+    var returnAllButton = Ext.create('Ext.button.Button', {
+      text: 'Return All',
+      iconCls: 'x-fa fa-undo',
+      handler: function () {
+        var selectedRecords = transactionDetailsGrid.getSelectionModel().getSelection();
+        if (selectedRecords.length === 0) {
+          Ext.Msg.alert('Error', 'Please select at least one transaction detail to return.');
+          return;
+        }
+
+        Ext.Msg.confirm('Confirmation', 'Are you sure you want to return all selected movies?', function (btn) {
+          if (btn === 'yes') {
+            var currentDate = new Date().toISOString();
+
+            var returnPromises = selectedRecords.map(function (record) {
+              var returnDate = record.get('ReturnDate');
+              if (returnDate === null) {
+                var transactionDetailId = record.get('TransactionDetailId');
+                var updateData = {
+                  TransactionDetailId: transactionDetailId,
+                  TransactionId: record.get('TransactionId'),
+                  MovieId: record.get('MovieId'),
+                  Title: record.get('Title'),
+                  Director: record.get('Director'),
+                  ReturnDate: currentDate,
+                  Status: 'Returned'
+                };
+
+                return fetch('https://localhost:44302/TransactionDetailsDTO/' + transactionDetailId, {
+                  method: 'PUT',
+                  headers: {
+                    'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify(updateData)
+                })
+                .then(response => {
+                  if (!response.ok) {
+                    throw new Error('Failed to update ReturnDate for TransactionDetailId: ' + transactionDetailId);
+                  }
+                });
+              }
+            });
+
+            Promise.all(returnPromises)
+              .then(() => {
+                Ext.Msg.alert('Success', 'All selected movies have been returned.');
+                reloadTransactionDetails();
+              })
+              .catch(error => {
+                Ext.Msg.alert('Error', error.message);
+              });
+          }
+        });
+      }
+    });
     // Create a "Delete" button
     var deleteButton = Ext.create('Ext.button.Button', {
       text: 'Delete Rented Movie',
+      iconCls: 'x-fa fa-trash',
       handler: function () {
         var selectedRecords = transactionDetailsGrid.getSelectionModel().getSelection();
         if (selectedRecords.length === 0) {
@@ -668,26 +726,52 @@ Ext.define('MovieRentalApp.view.main.TransactionGrid', {
 
     // toolbar with the Add & Delete button 
     var toolbar = Ext.create('Ext.toolbar.Toolbar', {
-      items: [addButton, deleteButton]
+      items: [addButton, returnAllButton, deleteButton ]
     });
 
-    // Create a panel with the transaction details grid and toolbar
-    var panel = Ext.create('Ext.panel.Panel', {
-      layout: 'fit',
+    
+
+     // Create a panel with the customer name and the transaction details grid
+     var fieldSet = Ext.create('Ext.form.FieldSet', {
+      title: 'Transaction Information', // Optional title for the fieldset
       items: [
-        transactionDetailsGrid
-      ],
-      dockedItems: [
-        toolbar
+        {
+          xtype: 'textfield',
+          fieldLabel: 'Transaction Id',
+          value: record.get('TransactionId'),
+          readOnly: true
+        },
+        {
+          xtype: 'textfield',
+          fieldLabel: 'Customer Name',
+          value: record.get('CustomerName'),
+          readOnly: true
+        },
+        {
+          xtype: 'datefield',
+          fieldLabel: 'Rent Date',
+          format: 'Y-m-d',
+          value: record.get('RentDate'),    
+          readOnly: true    
+        }
       ]
     });
-
-    // Show the floating panel with the transaction details grid and toolbar
+    
+    // Create a panel with the customer name, rent date, and the transaction details grid
+    var panel = Ext.create('Ext.panel.Panel', {
+      items: [fieldSet, transactionDetailsGrid],
+      autoScroll: true, 
+      dockedItems: [
+        toolbar // Add the existing toolbar with Add, Return All, and Delete buttons
+      ]
+    });
+    
+    // Show the floating panel with the transaction details grid, toolbar, and grouped fields
     var floatingPanel = Ext.create('Ext.window.Window', {
-      title: 'Transaction Details',
+      title: 'Rental Details',
       layout: 'fit',
-      width: 800,
-      height: 450,
+      width: 1081,
+      height: 589,
       autoScroll: true, // Add this line to enable scrollbar
       items: [panel]
     });
@@ -748,13 +832,65 @@ Ext.define('MovieRentalApp.view.main.TransactionGrid', {
         }, this);
       }
     }
+  },
+
+  '->', // Add a spacer to align the search field to the right
+    
+      {
+        xtype: 'textfield',
+       //fieldLabel: 'Search',
+        emptyText: 'Enter a Customer Name',
+        enableKeyEvents: true,
+        triggers: {
+          search: {
+            cls: 'x-form-search-trigger',
+            handler: function() {
+              var field = this;
+              var value = field.getValue();
+              var store = field.up('grid').getStore();
+
+              if (value) {
+                // Apply a filter to the store based on the entered value
+                store.filterBy(function(record) {
+                  var name = record.get('CustomerName');
+                  return name.toLowerCase().indexOf(value.toLowerCase()) !== -1;
+                });
+              } else {
+                // Clear the filter and show all movies
+                store.clearFilter();
+              }
+            }
+          }
+        },
+        listeners: {
+          keyup: function(field, e) {
+            if (e.getKey() === e.ENTER) {
+              field.getTrigger('search').handler();
+            }
+          }
+        }
+      }
+
+  ],
+bbar: {
+  xtype: 'pagingtoolbar',
+  displayInfo: true,
+  store: {
+    type: 'userstore'
+  },
+  listeners: {
+    beforechange: function(toolbar, page, eOpts) {
+      var store = toolbar.getStore();
+      store.loadPage(page);
+      return false; // Prevent default paging behavior
+    }
   }
-],
+},
 
 listeners: {
-  afterrender: function (grid) {
+  afterrender: function(grid) {
     var store = grid.getStore();
-    store.load(); // Explicitly load the store
+    store.loadPage(1); // Load the first page of data
   }
-  }
+}
 });
