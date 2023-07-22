@@ -19,13 +19,15 @@ Ext.define('MovieRentalApp.view.main.UserGrid', {
   xtype: 'userGrid',
   title: 'Users',
   store: {
-    type: 'userstore'
+    type: 'userstore',
+    pageSize: 10, // Set the number of items to display per page
+    autoLoad: false 
   },
 
-  //allow users to select multiple columns or data
   selModel: {
     selType: 'checkboxmodel',
-    checkOnly: true
+    checkOnly: true,
+    mode: 'SINGLE'
   },
 
   columns: [
@@ -74,6 +76,7 @@ Ext.define('MovieRentalApp.view.main.UserGrid', {
                 fieldLabel: 'Address',
                 name: 'address'
               },
+              
               {
                 xtype: 'textfield',
                 fieldLabel: 'Email',
@@ -264,7 +267,7 @@ Ext.define('MovieRentalApp.view.main.UserGrid', {
                         Ext.Msg.alert('Success', 'User saved successfully!');
                         floatingPanel.close();
                         grid.getStore().load(); // Reload the grid store to show the new movie
-                        // Perform additional actions if needed
+                        
                       } else {
                         Ext.Msg.alert('Error', 'Failed to save the user.');
                         floatingPanel.close();
@@ -335,14 +338,65 @@ Ext.define('MovieRentalApp.view.main.UserGrid', {
             }, this); // Pass 'this' as the third argument to maintain the scope inside the confirmation callback
           }
         }
+      },
+
+      '->', // Add a spacer to align the search field to the right
+    
+      {
+        xtype: 'textfield',
+        //fieldLabel: 'Search',
+        emptyText: 'Enter a Name',
+        enableKeyEvents: true,
+        triggers: {
+          search: {
+            cls: 'x-form-search-trigger',
+            handler: function() {
+              var field = this;
+              var value = field.getValue();
+              var store = field.up('grid').getStore();
+
+              if (value) {
+                // Apply a filter to the store based on the entered value
+                store.filterBy(function(record) {
+                  var name = record.get('Name');
+                  return name.toLowerCase().indexOf(value.toLowerCase()) !== -1;
+                });
+              } else {
+                // Clear the filter and show all movies
+                store.clearFilter();
+              }
+            }
+          }
+        },
+        listeners: {
+          keyup: function(field, e) {
+            if (e.getKey() === e.ENTER) {
+              field.getTrigger('search').handler();
+            }
+          }
+        }
       }
     ]
   },
+  bbar: {
+    xtype: 'pagingtoolbar',
+    displayInfo: true,
+    store: {
+      type: 'userstore'
+    },
+    listeners: {
+      beforechange: function(toolbar, page, eOpts) {
+        var store = toolbar.getStore();
+        store.loadPage(page);
+        return false; // Prevent default paging behavior
+      }
+    }
+  },
 
   listeners: {
-    afterrender: function (grid) {
+    afterrender: function(grid) {
       var store = grid.getStore();
-      store.load();
+      store.loadPage(1); // Load the first page of data
     }
   }
 });
